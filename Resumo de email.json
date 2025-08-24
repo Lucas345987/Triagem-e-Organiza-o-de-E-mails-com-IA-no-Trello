@@ -1,0 +1,407 @@
+{
+  "name": "Resumo de email",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9c2fea60-b8c5-4ff9-ba43-c59c89a1de6c",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "MTXPbkUaNdSrTPIf",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<Position>\\nYou're an expert in email ticket classification. You've been working with classification for over 20 years.\\n</Position>\\n\\n<Instruction>\\nClassify incoming email into three possible categories: tecnico, financeiro, comercial.\\n</Instruction>\\n\\n<Categories>\\n- tecnico: when the subject is related to the technical side of the company\\n- financeiro: when it is a financial matter\\n- comercial: when the subject is related to the commercial side of the company\\n</Categories>\\n\\n<E-mail>\\nTitle: {{ $json.Subject }}\\nEmail text: {{ $json.snippet }}\\n</E-mail>\\n\\n<General Rules>\\nReturn ONLY the name of the category. Nothing beyond that. You will be penalized if you return anything other than the category name.\\n</General Rules>",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "65af6e84-75c6-4328-b8d9-4bb5a5d49f41",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<Position>\\nYou're a professional called AIberto responsible for summarizing emails. You've been doing this for over 20 years.\\n</Position>\\n\\n<Instructions>\\nYou have to present all the information in the email: start by saying who sent it and what the title is. Then give a brief summary (40 tokens) of what the person sent. Finally, display the body of the original email.\\n</Instructions>\\n\\n<Background>\\nAll emails are forwarded by someone to Anwar, founder of DascIA, a Data & AI consulting and training company. But you will not report to him, but in the \\\"{{ $json.text }}\\\" company's slack channel for the responsibles of the {{ $json.text }} area in DascIA.\\n</Context>\\n\\n<E-mail>\\nWho sent it: {{ $('Gmail Trigger').item.json.From }}\\nTitle: {{ $('Gmail Trigger').item.json.Subject }}\\nEmail body: {{ $('Gmail Trigger').item.json.snippet }}\\n</E-mail>\\n\\n<General rules>\\nDon't be long-winded and write in Brazilian Portuguese.\\n</General rules>",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        560,
+        0
+      ],
+      "id": "f4eb8e91-f4a6-4c18-bfec-e0f335513773",
+      "name": "Basic LLM Chain1"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Basic LLM Chain').item.json.text }}",
+                    "rightValue": "comercial",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "63f4f530-7a71-4dee-9d14-4de40fa65c4e"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "comercial"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "89417afe-8453-4097-a63c-f5effca840f5",
+                    "leftValue": "={{ $('Basic LLM Chain').item.json.text }}",
+                    "rightValue": "financeiro",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "financeiro"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "bb247a1b-026c-4860-8f2f-4930d863eea2",
+                    "leftValue": "={{ $('Basic LLM Chain').item.json.text }}",
+                    "rightValue": "tecnico",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "tecnico"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1152,
+        -16
+      ],
+      "id": "1775e049-eab9-484c-92da-6fd132d82dcb",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ea15036d-df1f-4f05-8c06-35ae97dffdd2",
+              "name": "Subject",
+              "value": "={{ $('Gmail Trigger').item.json.Subject }}",
+              "type": "string"
+            },
+            {
+              "id": "5f56457e-dfa6-4be3-b996-60ca1fb17d78",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        912,
+        0
+      ],
+      "id": "a80ccfb3-10a1-45df-856d-cc830ea9dd99",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-exp",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        496,
+        208
+      ],
+      "id": "52b78fc9-c7d0-4f84-99a5-e123f0cdc928",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MiCoNVHjCJVXKALC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash-exp",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        144,
+        208
+      ],
+      "id": "097efc3d-9115-40d1-8ce4-e8f1f124a2e7",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "MiCoNVHjCJVXKALC",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "listId": "68a614bb4b4499a075bb0ba9",
+        "name": "={{ $json.Subject }}",
+        "description": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        0
+      ],
+      "id": "0798be09-beae-4d18-8a01-f061477b96da",
+      "name": "Financeiro",
+      "credentials": {
+        "trelloApi": {
+          "id": "RXZVGWh2MWALX4yx",
+          "name": "Trello account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "listId": "68a614bb4b4499a075bb0bab",
+        "name": "={{ $json.Subject }}",
+        "description": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        160
+      ],
+      "id": "3d9cfdf4-5f3c-439a-aae2-ed643695992c",
+      "name": "Tecnico",
+      "credentials": {
+        "trelloApi": {
+          "id": "RXZVGWh2MWALX4yx",
+          "name": "Trello account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "listId": "68a614bb4b4499a075bb0baa",
+        "name": "={{ $json.Subject }}",
+        "description": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.trello",
+      "typeVersion": 1,
+      "position": [
+        1536,
+        -144
+      ],
+      "id": "6e1c653d-7eb7-49b5-8097-945f2043e296",
+      "name": "Comercial",
+      "credentials": {
+        "trelloApi": {
+          "id": "RXZVGWh2MWALX4yx",
+          "name": "Trello account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "# Resumo de email",
+        "height": 624,
+        "width": 1840
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -96,
+        -192
+      ],
+      "typeVersion": 1,
+      "id": "34d71dca-53ff-4af6-bf38-e24713820c84",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Comercial",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Financeiro",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tecnico",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e993b6ec-9c91-43f1-8723-348161ab7e3b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "51fdb9e46769184f2f9f9fccb60d0338326a1cac284ab99b260dc1bfae70c2bd"
+  },
+  "id": "74fy4I9gEYAeKu8S",
+  "tags": []
+}
